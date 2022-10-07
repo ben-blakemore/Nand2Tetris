@@ -42,5 +42,32 @@ CHIP ALU {
         ng; // 1 if (out < 0),  0 otherwise
 
     PARTS:
+    // preset x input
+    Mux16(a=x, b=false, sel=zx, out=x2); // x input is now either not modified or all 0s
+    // then if nx is 1, NOT the x input
+    Not16(in=x2, out=notX2);
+    Mux16(a=x2, b=notX2, sel=nx, out=x3); // if nx = 1, x input is now !x
+
+    // preset y input
+    Mux16(a=y, b=false, sel=zy, out=y2); // x input is now either not modified or all 0s
+    // then if ny is 1, not the y input
+    Not16(in=y2, out=notY2);
+    Mux16(a=y2, b=notY2, sel=ny, out=y3); // if ny = 1, y input is now !y
+
+    // if f = 1 then xORy, if 0 xANDy
+    And16(a=x3, b=y3, out=andXY);
+    Or16(a=x3, b=y3, out=orXY);
+    Mux16(a=andXY, b=orXY, sel=f, out=fxy);
     
+    // if no = 1 then out != out
+    Not16(in=fxy, out=notFXY);
+    Mux16(a=fxy, b=notFXY, sel=no, out=out, out[0..7]=finalFXY1, out[8..14]=finalFXY2, out[15]=finalFXY3);
+    // set zr
+    Or8Way(in=finalFXY1, out=zr1);
+    Or8Way(in[0..6]=finalFXY2, in[7]=finalFXY3, out=zr2);
+    Or(a=zr1, b=zr2, out=notZr);
+    Not(in=notZr, out=zr);
+
+    // set ng, MSB will be 1 if < 0
+    And(a=finalFXY3, b=finalFXY3, out=ng);
 }
