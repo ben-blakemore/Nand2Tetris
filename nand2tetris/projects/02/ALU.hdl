@@ -54,10 +54,10 @@ CHIP ALU {
     Not16(in=y2, out=notY2);
     Mux16(a=y2, b=notY2, sel=ny, out=y3); // if ny = 1, y input is now !y
 
-    // if f = 1 then xORy, if 0 xANDy
+    // if f = 1 then x + y, if 0 xANDy
     And16(a=x3, b=y3, out=andXY);
-    Or16(a=x3, b=y3, out=orXY);
-    Mux16(a=andXY, b=orXY, sel=f, out=fxy);
+    Add16(a=x3, b=y3, out=plusXY);
+    Mux16(a=andXY, b=plusXY, sel=f, out=fxy);
     
     // if no = 1 then out != out
     Not16(in=fxy, out=notFXY);
