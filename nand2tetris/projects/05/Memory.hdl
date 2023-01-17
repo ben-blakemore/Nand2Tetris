@@ -27,5 +27,20 @@ CHIP Memory {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // Memory split into:
+    // RAM16K:   0000 - 3FFF / 00000 - 16383 / 0000 0000 0000 0000 - 0011 1111 1111 1111
+    // Screen:   4000 - 5FFF / 16384 - 24575 / 0100 0000 0000 0000 - 0101 1111 1111 1111
+    // Keyboard: 	6000 /         24576 /                       0110 0000 0000 0000
+
+    // Use address to calculate which data store is to be accessed
+    DMux(in=load, sel=address[14], a=memoryLoad, b=mapsLoad);
+    DMux(in=mapsLoad, sel=address[13], a=screenLoad);
+
+    // Load values
+    RAM16K(in=in, load=memoryLoad, address=address[0..13], out=memoryOut);
+    Screen(in=in, load=screenLoad, address=address[0..12], out=screenOut);
+    Keyboard(out=keyboardOut);
+
+    Mux16(a=screenOut, b=keyboardOut, sel=address[13], out=mapsOut);
+    Mux16(a=memoryOut, b=mapsOut, sel=address[14], out=out);
 }
