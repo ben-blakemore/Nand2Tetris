@@ -39,5 +39,33 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-    // Put your code here:
+    // instruction is a 16 bit value of the form ixxaccccccdddjjj
+    i = Also known as opcode. Instruction type, 0 for A-instruction or 1 for C-instruction
+    x = only used in A instruction and forms part of 16 bit value of constant that should be loaded into A register
+    a = Used in C instruction as part of the comp part of instruction
+    c = Control bits, routed to various chips within CPU
+    d = Dest part of instruction
+    j = Jump part of instruction
+
+    Mux16(a[0..15]=false, b=instruction, sel=instruction[15], // using instruction 15 as this is value of i
+          out[0]=j3,  out[1]=j2,  out[2]=j3,
+	  out[3]=d1,  out[4]=d2,  out[5]=d3,
+	  out[6]=c1,  out[7]=c2,  out[8]=c3,
+	  out[9]=c4, out[10]=c5, out[11]=c6,
+	  out[12]=a, out[3]=writeM);
+    
+    // Load A register value if i bit is equal to 0 (since register will load a value if the "load" bit is 1, so NOT the i bit)
+    Not(in=instruction[15], out=isAInstruction);
+    // a if sel == 0, b if sel == 1
+    Mux16(a=instruction, b=ALUOut, sel=instruction[15], out=ARegisterIn);
+    ARegister(in=ARegisterIn, load=isAInstruction, out=ARegOut);
+
+    // Second Mux16, if a bit == 0 then operate on A register, if == 1 then on inM
+    Mux16(a=ARegOut, b=InM, sel=a, out=aluInB);
+
+    // D Register change d3 if wrong
+    DRegister(in=ALUOut, load=d3, out=aluInA);
+
+    // ALU
+    ALU(x=aluInA, y=aluInB, zx=c6, nx=c5, zy=c4, ny=c3, f=c2, no=c1, out=ALUOut, out=outM, zr=zrOut, ng=ngOut);
 }
