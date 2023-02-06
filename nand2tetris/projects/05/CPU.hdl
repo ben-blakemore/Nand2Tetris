@@ -57,8 +57,10 @@ CHIP CPU {
     
     // Load A register value if i bit is equal to 0
     // a if sel == 0, b if sel == 1
-    Mux16(a=instruction, b=ALUOut, sel=instruction[15], out=ARegisterIn);
-    ARegister(in=ARegisterIn, load=d3, out=ARegOut, out[0..14]=addressM);
+    Not(in=instruction[15], out=ni);
+    Mux16(a=instruction, b=ALUOut, sel=ni, out=ARegisterIn);
+    Or(a=ni, b=instruction[5], out=intoA);
+    ARegister(in=ARegisterIn, load=intoA, out=ARegOut, out[0..14]=addressM);
 
     // Second Mux16, if a bit == 0 then operate on A register, if == 1 then on inM
     Mux16(a=ARegOut, b=inM, sel=a, out=aluInB);
