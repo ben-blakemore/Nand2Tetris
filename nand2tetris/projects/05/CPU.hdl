@@ -48,24 +48,35 @@ CHIP CPU {
     j = Jump part of instruction
 
     Mux16(a[0..15]=false, b=instruction, sel=instruction[15], // using instruction 15 as this is value of i
-          out[0]=j3,  out[1]=j2,  out[2]=j3,
+          out[0]=j1,  out[1]=j2,  out[2]=j3,
 	  out[3]=d1,  out[4]=d2,  out[5]=d3,
 	  out[6]=c1,  out[7]=c2,  out[8]=c3,
 	  out[9]=c4, out[10]=c5, out[11]=c6,
 	  out[12]=a, out[3]=writeM);
     
-    // Load A register value if i bit is equal to 0 (since register will load a value if the "load" bit is 1, so NOT the i bit)
-    Not(in=instruction[15], out=isAInstruction);
+    // Load A register value if i bit is equal to 0
     // a if sel == 0, b if sel == 1
     Mux16(a=instruction, b=ALUOut, sel=instruction[15], out=ARegisterIn);
-    ARegister(in=ARegisterIn, load=isAInstruction, out=ARegOut);
+    ARegister(in=ARegisterIn, load=d3, out=ARegOut);
 
     // Second Mux16, if a bit == 0 then operate on A register, if == 1 then on inM
     Mux16(a=ARegOut, b=InM, sel=a, out=aluInB);
 
     // D Register change d3 if wrong
-    DRegister(in=ALUOut, load=d3, out=aluInA);
+    DRegister(in=ALUOut, load=d2, out=aluInA);
 
     // ALU
     ALU(x=aluInA, y=aluInB, zx=c6, nx=c5, zy=c4, ny=c3, f=c2, no=c1, out=ALUOut, out=outM, zr=zrOut, ng=ngOut);
+
+    // If ALUOut is positive then the AND of NOT of ng & zr will be 1
+    Not(in=zrOut, out=notZrOut);
+    Not(in=ngOut, out=notNgOut);
+    And(a=notZrOut, b=notNgOut, out=outIsPos); // This will determine if ALU out is positive
+    And(a=j1, b=outIsPos, out=j1Out); // If 1 then out must be greater than 0
+    And(a=j2, b=zrOut, out=j2Out); // If both are 1 then out must be equal to 0
+    Or(a=j1Out, b=j2Out, out=j1OrJ2Out);
+    And(a=j3, b=ngOut, out=j3Out); // If both are 1 then out must be less than 0
+    Or(a=j1OrJ2Out, b=j3Out, out=pcLoad);
+
+    PC(in=ARegOut, load=pcLoad, inc, reset=reset, out
 }
