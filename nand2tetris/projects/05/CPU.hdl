@@ -4,10 +4,10 @@
 // File name: projects/05/CPU.hdl
 
 /**
- * The Hack CPU (Central Processing unit), consisting of an ALU,
- * two registers named A and D, and a program counter named PC.
- * The CPU is designed to fetch and execute instructions written in 
- * the Hack machine language. In particular, functions as follows:
+ * The Central Processing unit (CPU).
+ * Consists of an ALU and a set of registers, designed to fetch and 
+ * execute instructions written in the Hack machine language.
+ * In particular, functions as follows:
  * Executes the inputted instruction according to the Hack machine 
  * language specification. The D and A in the language specification
  * refer to CPU-resident registers, while M refers to the external
@@ -15,71 +15,68 @@
  * holds the value of this location. If the current instruction needs 
  * to write a value to M, the value is placed in outM, the address 
  * of the target location is placed in the addressM output, and the 
- * writeM control bit is asserted. (When writeM==0, any value may 
+ * writeM control bit is asserted. (When writeM=0, any value may 
  * appear in outM). The outM and writeM outputs are combinational: 
  * they are affected instantaneously by the execution of the current 
  * instruction. The addressM and pc outputs are clocked: although they 
  * are affected by the execution of the current instruction, they commit 
- * to their new values only in the next time step. If reset==1 then the 
- * CPU jumps to address 0 (i.e. pc is set to 0 in next time step) rather 
+ * to their new values only in the next time unit. If reset=1 then the 
+ * CPU jumps to address 0 (i.e. sets pc=0 in next time unit) rather 
  * than to the address resulting from executing the current instruction. 
  */
 
 CHIP CPU {
 
-    IN  inM[16],         // M value input  (M = contents of RAM[A])
+    IN  inM[16],      // M value input  (M = contents of RAM[A])
         instruction[16], // Instruction for execution
         reset;           // Signals whether to re-start the current
-                         // program (reset==1) or continue executing
-                         // the current program (reset==0).
+                         // program (reset=1) or continue executing
+                         // the current program (reset=0).
 
     OUT outM[16],        // M value output
-        writeM,          // Write to M? 
+        writeM,          // Write into M? 
         addressM[15],    // Address in data memory (of M)
         pc[15];          // address of next instruction
 
     PARTS:
-    // instruction is a 16 bit value of the form ixxaccccccdddjjj
-    //i = Also known as opcode. Instruction type, 0 for A-instruction or 1 for C-instruction
-    //x = only used in A instruction and forms part of 16 bit value of constant that should be loaded into A register
-    //a = Used in C instruction as part of the comp part of instruction
-    //c = Control bits, routed to various chips within CPU
-    //d = Dest part of instruction
-    //j = Jump part of instruction
-    //
+	Not(in=instruction[15],out=ni);
+	Mux16(a=outtM,b=instruction,sel=ni,out=i);
 
-    Mux16(a[0..15]=false, b=instruction, sel=instruction[15], // using instruction 15 as this is value of i
-          out[0]=j1,  out[1]=j2,  out[2]=j3,
-	  out[3]=d1,  out[4]=d2,  out[5]=d3,
-	  out[6]=c1,  out[7]=c2,  out[8]=c3,
-	  out[9]=c4, out[10]=c5, out[11]=c6,
-	  out[12]=a, out[3]=writeM);
-    
-    // Load A register value if i bit is equal to 0
-    // a if sel == 0, b if sel == 1
-    Not(in=instruction[15], out=ni);
-    Mux16(a=instruction, b=ALUOut, sel=ni, out=ARegisterIn);
-    Or(a=ni, b=instruction[5], out=intoA);
-    ARegister(in=ARegisterIn, load=intoA, out=ARegOut, out[0..14]=addressM);
+	Or(a=ni,b=instruction[5],out=intoA);
+	ARegister(in=i,load=intoA,out=A,out[0..14]=addressM);
 
-    // Second Mux16, if a bit == 0 then operate on A register, if == 1 then on inM
-    Mux16(a=ARegOut, b=inM, sel=a, out=aluInB);
+	And(a=instruction[15],b=instruction[12],out=AorM);
+	Mux16(a=A,b=inM,sel=AorM,out=AM);
+	
+	ALU(x=D,y=AM,zx=instruction[11],nx=instruction[10],zy=instruction[9],ny=instruction[8],f=instruction[7],no=instruction[6],out=outtM,out=outM,zr=zr,ng=ng);
 
-    // D Register change d3 if wrong
-    DRegister(in=ALUOut, load=d2, out=aluInA);
+	And(a=instruction[15],b=instruction[4],out=intoD);
+	DRegister(in=outtM,load=intoD,out=D);
 
-    // ALU
-    ALU(x=aluInA, y=aluInB, zx=c6, nx=c5, zy=c4, ny=c3, f=c2, no=c1, out=ALUOut, out=outM, zr=zrOut, ng=ngOut);
+	And(a=instruction[15],b=instruction[3],out=writeM);
 
-    // If ALUOut is positive then the AND of NOT of ng & zr will be 1
-    Not(in=zrOut, out=notZrOut);
-    Not(in=ngOut, out=notNgOut);
-    And(a=notZrOut, b=notNgOut, out=outIsPos); // This will determine if ALU out is positive
-    And(a=j1, b=outIsPos, out=j1Out); // If 1 then out must be greater than 0
-    And(a=j2, b=zrOut, out=j2Out); // If both are 1 then out must be equal to 0
-    Or(a=j1Out, b=j2Out, out=j1OrJ2Out);
-    And(a=j3, b=ngOut, out=j3Out); // If both are 1 then out must be less than 0
-    Or(a=j1OrJ2Out, b=j3Out, out=pcLoad);
+	Not(in=ng,out=pos);
+	Not(in=zr,out=nzr);
+	And(a=instruction[15],b=instruction[0],out=jgt);
+	And(a=pos,b=nzr,out=posnzr);
+	And(a=jgt,b=posnzr,out=ld1);
 
-    PC(in=ARegOut, load=pcLoad, inc=true, reset=reset, out[0..14]=pc);
+	And(a=instruction[15],b=instruction[1],out=jeq);
+	And(a=jeq,b=zr,out=ld2);
+
+	And(a=instruction[15],b=instruction[2],out=jlt);
+	And(a=jlt,b=ng,out=ld3);
+
+	Or(a=ld1,b=ld2,out=ldt);
+	Or(a=ld3,b=ldt,out=ld);
+
+	PC(in=A,load=ld,inc=true,reset=reset,out[0..14]=pc);
+
 }
+
+
+
+
+
+
+
