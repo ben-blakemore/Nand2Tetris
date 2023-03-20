@@ -60,11 +60,34 @@ def parse_a_instruction(instruction):
     command_list.append("0" + register_binary)
 
 def parse_c_instruction(instruction):
-    instruction_split = instruction.split("=")
-    dest = instruction_split[0]
-    comp = instruction_split[1]
-    binary = "111"
-    return "binary"
+    comp_command, dest_command, jump_command = "", "", ""
+    jump_next = False
+
+    for char in instruction:
+        if jump_next:
+            jump_command += char
+        elif char == "=":
+            dest_command = comp_command
+            comp_command = ""
+        elif char == ";":
+            jump_next = True
+        else:
+            comp_command += char
+    
+    try:
+        comp = comp_table[comp_command]
+    except:
+        print(f"{comp_command} is not a valid comp value")
+    try:
+        dest = dest_table[dest_command]
+    except:
+        print(f"{dest_command} is not a valid dest value")
+    try:
+        jump = jump_table[jump_command]
+    except:
+        print(f"{jump_command} is not a valid jump value")
+
+    command_list.append(f"111{comp}{dest}{jump}")
 
 def parse_file(input_file):
     for line in input_file.readlines():
@@ -82,3 +105,6 @@ if __name__ == "__main__":
     # parse the file
     with open(file, 'r') as input_file:
         result = parse_file(input_file)
+    with open(f'{file.split(".")[0]}.hack', 'w') as output_file:
+        for line in command_list:
+            output_file.write(line + "\n")
