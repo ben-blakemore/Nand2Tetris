@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["add/Add.asm"]
+            "args": ["max/Max.asm"]
         }
     ]
 }
