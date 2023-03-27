@@ -74,7 +74,7 @@ def parse_a_instruction(instruction):
         return
     register = int(instruction.rsplit("@")[1]) # Get register number to convert to binary#
     register_binary = convert_to_binary(register)
-    command_list.append("0" + register_binary)
+    command_list.append(register_binary)
 
 def parse_c_instruction(instruction):
     comp_command, dest_command, jump_command = "", "", ""
@@ -113,8 +113,8 @@ def parse_file(input_file):
         line = line.strip()
         if line == "" or line[0] == "/": # Is a comment
             continue
-        elif line[0] == "(": # Is a symbol
-            symbol_table[line] = len(command_list) + 1
+        elif line[0] == "(": # Is a symbol - already done in first pass
+            continue
         elif line[0] == "@":
             parse_a_instruction(line)
         else:
@@ -137,6 +137,16 @@ def initialise_symbol_table():
     
     return symbol_table
 
+def first_pass(input_file):
+    count = 0
+    for line in input_file.readlines():
+        count += 1
+        line = line.strip()
+        if line == "":
+            continue
+        if line[0] == "(": # Is a symbol
+            symbol_table[line] = count + 1
+
 if __name__ == "__main__":
     symbol_table = initialise_symbol_table()
 
@@ -145,6 +155,8 @@ if __name__ == "__main__":
         print("Must pass in a .asm input file")
     # parse the file
     with open(file, 'r') as input_file:
+        first_pass(input_file)
+        input_file.seek(0)
         result = parse_file(input_file)
     with open(f'{file.split(".")[0]}.hack', 'w') as output_file:
         for line in command_list:
