@@ -1,4 +1,5 @@
 import sys
+import re
 
 comp_table = {
     "0":  "0101010",
@@ -69,7 +70,7 @@ def parse_a_instruction(instruction):
     if not symbol.isnumeric():
         global symbol_count
         symbol_table[symbol] = symbol_count + 16
-        # command_list.append(convert_to_binary(symbol_table[symbol]))
+        command_list.append(convert_to_binary(symbol_table[symbol]))
         symbol_count += 1
         return
     register = int(instruction.rsplit("@")[1]) # Get register number to convert to binary#
@@ -140,12 +141,13 @@ def initialise_symbol_table():
 def first_pass(input_file):
     count = 0
     for line in input_file.readlines():
-        count += 1
         line = line.strip()
-        if line == "":
+        if line == "" or "/" in line: # Line is blank or comment
             continue
         if line[0] == "(": # Is a symbol
-            symbol_table[line] = count + 1
+            symbol_table[re.sub('[()]', '', line)] = count # Don't want to add e.g. (label), instead want just 'label'
+            count -= 1
+        count += 1
 
 if __name__ == "__main__":
     symbol_table = initialise_symbol_table()
